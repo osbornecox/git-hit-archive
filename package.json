@@ -1,0 +1,24 @@
+{
+  "name": "git-hit-archive",
+  "version": "0.1.0",
+  "description": "Curated AI/ML repository database with semantic search",
+  "type": "module",
+  "scripts": {
+    "build-archive": "tsx src/pipeline.ts",
+    "build-archive:dry": "tsx src/pipeline.ts --skip-llm --skip-embed",
+    "search": "tsx src/search.ts",
+    "export": "tsx src/steps/6-export.ts"
+  },
+  "dependencies": {
+    "@lancedb/lancedb": "^0.13.0",
+    "better-sqlite3": "^11.7.0",
+    "openai": "^4.77.0",
+    "yaml": "^2.7.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}
