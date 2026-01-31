@@ -1,11 +1,12 @@
 /**
- * Step 3: LLM Scoring
- * Scores posts using gpt-4.1-mini based on user interests
+ * Step 4: LLM Scoring
+ * Scores posts using LLM based on user interests
  */
 
 import { posts } from "../db";
 import { callFast } from "../llm/client";
 import { loadPromptTemplate } from "../llm/prompts/index";
+import { sleep } from "../utils";
 import type { Post, Config } from "../types";
 import * as fs from "fs";
 import * as path from "path";
@@ -94,14 +95,10 @@ async function scorePost(post: Post, config: Config): Promise<ScoreResult & { fa
 	}
 }
 
-function sleep(ms: number): Promise<void> {
-	return new Promise(resolve => setTimeout(resolve, ms));
-}
-
 export async function runScore(options: { batchSize?: number; delayMs?: number } = {}): Promise<{ scored: number; failed: number }> {
 	const { batchSize = 10, delayMs = 500 } = options;
 
-	logProgress("\n[3/6] Scoring posts with LLM...");
+	logProgress("\n[4/8] Scoring posts with LLM...");
 
 	const config = loadConfig();
 	const postsToScore = posts.getUnscored();
@@ -120,7 +117,6 @@ export async function runScore(options: { batchSize?: number; delayMs?: number }
 	for (let i = 0; i < postsToScore.length; i += batchSize) {
 		const batch = postsToScore.slice(i, i + batchSize);
 
-		// Process batch in parallel
 		const results = await Promise.all(
 			batch.map(async (post) => {
 				const result = await scorePost(post, config);
@@ -128,10 +124,8 @@ export async function runScore(options: { batchSize?: number; delayMs?: number }
 			})
 		);
 
-		// Update database and log failures
 		for (const { post, result } of results) {
 			if (result.failed) {
-				// Don't write score — leave as unscored so it retries next run
 				logFailed(post, result.error || "unknown", result.response);
 				failed++;
 			} else {
@@ -140,7 +134,6 @@ export async function runScore(options: { batchSize?: number; delayMs?: number }
 			}
 		}
 
-		// Progress logging every 100 posts
 		if ((i + batchSize) % 100 < batchSize || i + batchSize >= postsToScore.length) {
 			const progress = Math.min(i + batchSize, postsToScore.length);
 			const elapsedSec = (Date.now() - startTime) / 1000;
@@ -149,7 +142,6 @@ export async function runScore(options: { batchSize?: number; delayMs?: number }
 			logProgress(`  Progress: ${progress}/${postsToScore.length} (${Math.round(progress / postsToScore.length * 100)}%) | ${elapsed}s | ~${rate}/min | failed: ${failed}`);
 		}
 
-		// Rate limiting
 		if (i + batchSize < postsToScore.length && delayMs > 0) {
 			await sleep(delayMs);
 		}

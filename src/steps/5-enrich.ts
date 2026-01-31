@@ -1,11 +1,12 @@
 /**
- * Step 4: LLM Enrichment
- * Generates summaries for top-scored posts using gpt-5-mini
+ * Step 5: LLM Enrichment
+ * Generates summaries for top-scored posts
  */
 
 import { posts } from "../db";
 import { callStrong } from "../llm/client";
 import { loadPromptTemplate } from "../llm/prompts/index";
+import { sleep } from "../utils";
 import type { Post, Config } from "../types";
 import * as fs from "fs";
 import * as path from "path";
@@ -93,16 +94,13 @@ async function enrichPost(post: Post, config: Config): Promise<EnrichmentResult 
 	}
 }
 
-function sleep(ms: number): Promise<void> {
-	return new Promise(resolve => setTimeout(resolve, ms));
-}
+export async function runEnrich(options: { delayMs?: number } = {}): Promise<{ enriched: number; failed: number }> {
+	const { delayMs = 500 } = options;
 
-export async function runEnrich(options: { delayMs?: number; minScore?: number } = {}): Promise<{ enriched: number; failed: number }> {
-	const { delayMs = 500, minScore = 0.8 } = options;
-
-	logProgress("\n[4/6] Enriching top posts with LLM...");
+	logProgress("\n[5/8] Enriching top posts with LLM...");
 
 	const config = loadConfig();
+	const minScore = (config.min_score ?? 80) / 100;
 	const postsToEnrich = posts.getUnenriched(minScore);
 
 	logProgress(`  Found ${postsToEnrich.length} posts to enrich (score >= ${minScore})`);
@@ -130,7 +128,6 @@ export async function runEnrich(options: { delayMs?: number; minScore?: number }
 			failed++;
 		}
 
-		// Progress logging every 50 posts
 		if ((i + 1) % 50 === 0 || i + 1 === postsToEnrich.length) {
 			const elapsedSec = (Date.now() - startTime) / 1000;
 			const elapsed = elapsedSec.toFixed(0);
@@ -138,7 +135,6 @@ export async function runEnrich(options: { delayMs?: number; minScore?: number }
 			logProgress(`  Progress: ${i + 1}/${postsToEnrich.length} (${Math.round((i + 1) / postsToEnrich.length * 100)}%) | ${elapsed}s | ~${rate}/min | failed: ${failed}`);
 		}
 
-		// Rate limiting (Sonnet is more expensive)
 		if (i + 1 < postsToEnrich.length && delayMs > 0) {
 			await sleep(delayMs);
 		}

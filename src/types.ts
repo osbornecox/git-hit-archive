@@ -14,32 +14,49 @@ export interface Post {
 	summary?: string;              // post summary in configured language
 	relevance?: string;            // relevance explanation in configured language
 	scored_at?: string;            // when LLM scored this post
+
+	// Notification tracking
+	sent_to_telegram_at?: string;
+	sent_to_slack_at?: string;
 }
 
 export interface GitHubSourceConfig {
+	enabled?: boolean;
 	min_stars: number;
 	languages: string[];
 }
 
+export interface RedditSourceConfig {
+	enabled?: boolean;
+	subreddits: string[];
+	min_score: number;
+	flair_filters?: Record<string, string[]>;
+}
+
 export interface SourceConfig {
 	github: GitHubSourceConfig;
-	reddit?: {
-		subreddits: string[];
-		min_score: number;
-	};
+	reddit?: RedditSourceConfig;
 	huggingface?: {
+		enabled?: boolean;
 		min_likes: number;
 		min_downloads: number;
 	};
 	replicate?: {
+		enabled?: boolean;
 		min_runs: number;
 	};
 	spam_keywords?: string[];
 }
 
+export interface ScheduleConfig {
+	enabled: boolean;
+	times: string[];
+	timezone?: string;
+}
+
 export interface Config {
 	language: string;
-	min_score_for_digest: number;
+	min_score: number;
 	profile: string;
 	interests: {
 		high: string[];
@@ -48,9 +65,10 @@ export interface Config {
 	};
 	exclude: string[];
 	sources: SourceConfig;
+	schedule?: ScheduleConfig;
 }
 
 export interface FetchProgress {
-	completedRanges: Array<{ start: string; end: string; count: number }>;
+	completedRanges: Array<{ start: string; end: string; count: number; language?: string }>;
 	lastUpdated: string;
 }

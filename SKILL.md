@@ -1,6 +1,6 @@
 ---
 name: git-hit-archive
-description: Semantic search over curated AI/ML GitHub repositories (past year, 19k+ repos)
+description: Semantic search over curated AI/ML repositories from GitHub & Reddit (past year, 19k+ repos)
 ---
 
 ## When to use

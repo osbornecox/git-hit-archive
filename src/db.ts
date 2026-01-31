@@ -52,11 +52,19 @@ function initSchema(): void {
 		CREATE INDEX IF NOT EXISTS idx_posts_embedded ON posts(embedded_at);
 	`);
 
-	// Migration: add enrich_attempts if missing
-	try {
-		database.exec(`ALTER TABLE posts ADD COLUMN enrich_attempts INTEGER DEFAULT 0`);
-	} catch {
-		// Column already exists
+	// Migrations: add columns if missing
+	const migrations = [
+		"ALTER TABLE posts ADD COLUMN enrich_attempts INTEGER DEFAULT 0",
+		"ALTER TABLE posts ADD COLUMN sent_to_telegram_at TEXT",
+		"ALTER TABLE posts ADD COLUMN sent_to_slack_at TEXT",
+	];
+
+	for (const sql of migrations) {
+		try {
+			database.exec(sql);
+		} catch {
+			// Column already exists
+		}
 	}
 }
 
@@ -232,6 +240,17 @@ export const posts = {
 		stmt.run(summary, id, source);
 	},
 
+	updateDescription(id: string, source: string, description: string): void {
+		const database = getDb();
+		const stmt = database.prepare(`
+			UPDATE posts
+			SET description = ?
+			WHERE id = ? AND source = ?
+			  AND length(?) > length(COALESCE(description, ''))
+		`);
+		stmt.run(description, id, source, description);
+	},
+
 	incrementEnrichAttempts(id: string, source: string): void {
 		const database = getDb();
 		const stmt = database.prepare(`
@@ -256,6 +275,77 @@ export const posts = {
 			}
 		});
 		transaction(ids);
+	},
+
+	getUnsentTelegramPosts(minScore: number): Post[] {
+		const database = getDb();
+		const threeDaysAgo = new Date();
+		threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+		const stmt = database.prepare(`
+			SELECT * FROM posts
+			WHERE relevance_score >= ?
+			  AND sent_to_telegram_at IS NULL
+			  AND summary IS NOT NULL
+			  AND created_at > ?
+			ORDER BY relevance_score DESC, stars DESC
+		`);
+		return stmt.all(minScore, threeDaysAgo.toISOString()) as Post[];
+	},
+
+	markAsSentToTelegram(ids: Array<{ id: string; source: string }>): void {
+		const database = getDb();
+		const stmt = database.prepare(`
+			UPDATE posts SET sent_to_telegram_at = ? WHERE id = ? AND source = ?
+		`);
+		const now = new Date().toISOString();
+		const transaction = database.transaction((items: Array<{ id: string; source: string }>) => {
+			for (const item of items) {
+				stmt.run(now, item.id, item.source);
+			}
+		});
+		transaction(ids);
+	},
+
+	getUnsentSlackPosts(minScore: number): Post[] {
+		const database = getDb();
+		const threeDaysAgo = new Date();
+		threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+		const stmt = database.prepare(`
+			SELECT * FROM posts
+			WHERE relevance_score >= ?
+			  AND sent_to_slack_at IS NULL
+			  AND summary IS NOT NULL
+			  AND created_at > ?
+			ORDER BY relevance_score DESC, stars DESC
+		`);
+		return stmt.all(minScore, threeDaysAgo.toISOString()) as Post[];
+	},
+
+	markAsSentToSlack(ids: Array<{ id: string; source: string }>): void {
+		const database = getDb();
+		const stmt = database.prepare(`
+			UPDATE posts SET sent_to_slack_at = ? WHERE id = ? AND source = ?
+		`);
+		const now = new Date().toISOString();
+		const transaction = database.transaction((items: Array<{ id: string; source: string }>) => {
+			for (const item of items) {
+				stmt.run(now, item.id, item.source);
+			}
+		});
+		transaction(ids);
+	},
+
+	getShortDescriptionPosts(maxLength: number = 200, limit: number = 500): Post[] {
+		const database = getDb();
+		const stmt = database.prepare(`
+			SELECT * FROM posts
+			WHERE source = 'github'
+			  AND relevance_score IS NULL
+			  AND length(COALESCE(description, '')) < ?
+			ORDER BY stars DESC
+			LIMIT ?
+		`);
+		return stmt.all(maxLength, limit) as Post[];
 	},
 
 	close(): void {

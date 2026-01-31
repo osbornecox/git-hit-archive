@@ -1,15 +1,19 @@
 {
   "name": "git-hit-archive",
-  "version": "0.1.0",
-  "description": "Curated AI/ML repository database with semantic search",
+  "version": "0.2.0",
+  "description": "Curated AI/ML repository database with semantic search, Telegram & Slack digest",
   "type": "module",
   "scripts": {
     "build-archive": "tsx src/pipeline.ts",
-    "build-archive:dry": "tsx src/pipeline.ts --skip-llm --skip-embed",
+    "build-archive:dry": "tsx src/pipeline.ts --skip-llm --skip-embed --skip-notify",
     "search": "tsx src/search.ts",
-    "export": "tsx src/steps/6-export.ts"
+    "export": "tsx src/steps/7-export.ts",
+    "telegram": "tsx src/steps/8-notify.ts --telegram-only",
+    "slack": "tsx src/steps/8-notify.ts --slack-only",
+    "daemon": "tsx src/daemon.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
     "@lancedb/lancedb": "^0.13.0",
     "better-sqlite3": "^11.7.0",
     "openai": "^4.77.0",

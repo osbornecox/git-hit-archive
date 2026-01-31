@@ -1,10 +1,11 @@
 /**
- * Step 5: Generate Embeddings
+ * Step 6: Generate Embeddings
  * Creates vector embeddings using OpenAI text-embedding-3-small
  * Stores in LanceDB for semantic search
  */
 
 import { posts } from "../db";
+import { sleep } from "../utils";
 import type { Post } from "../types";
 import OpenAI from "openai";
 import * as lancedb from "@lancedb/lancedb";
@@ -13,7 +14,6 @@ import * as path from "path";
 const DATA_DIR = path.join(process.cwd(), "data");
 const LANCE_PATH = path.join(DATA_DIR, "archive.lance");
 const EMBEDDING_MODEL = "text-embedding-3-small";
-const EMBEDDING_DIMENSIONS = 1536;
 
 let openaiClient: OpenAI | null = null;
 
@@ -21,7 +21,7 @@ function getOpenAIClient(): OpenAI {
 	if (!openaiClient) {
 		const apiKey = process.env.OPENAI_API_KEY;
 		if (!apiKey) {
-			throw new Error("OPENAI_API_KEY environment variable is required");
+			throw new Error("OPENAI_API_KEY environment variable is required for embeddings");
 		}
 		openaiClient = new OpenAI({ apiKey });
 	}
@@ -57,14 +57,10 @@ async function generateEmbeddings(texts: string[]): Promise<number[][]> {
 	return response.data.map(d => d.embedding);
 }
 
-function sleep(ms: number): Promise<void> {
-	return new Promise(resolve => setTimeout(resolve, ms));
-}
-
 export async function runEmbed(options: { batchSize?: number; delayMs?: number } = {}): Promise<{ embedded: number }> {
 	const { batchSize = 100, delayMs = 200 } = options;
 
-	console.log("\n[5/6] Generating embeddings...");
+	console.log("\n[6/8] Generating embeddings...");
 
 	const postsToEmbed = posts.getUnembedded();
 
@@ -75,7 +71,6 @@ export async function runEmbed(options: { batchSize?: number; delayMs?: number }
 		return { embedded: 0 };
 	}
 
-	// Connect to LanceDB
 	const db = await lancedb.connect(LANCE_PATH);
 	const tableNames = await db.tableNames();
 	let table: lancedb.Table | null = tableNames.includes("posts")
@@ -110,30 +105,25 @@ export async function runEmbed(options: { batchSize?: number; delayMs?: number }
 				vector: embeddings[j],
 			}));
 
-			// Write to LanceDB FIRST, then mark in SQLite
 			if (!table) {
 				table = await db.createTable("posts", records);
 			} else {
 				await table.add(records);
 			}
 
-			// Only mark as embedded after LanceDB write succeeds
 			posts.markAsEmbedded(batch.map(p => ({ id: p.id, source: p.source })));
 			embedded += batch.length;
 
-			// Progress logging
 			if ((i + batchSize) % 500 < batchSize || i + batchSize >= postsToEmbed.length) {
 				const progress = Math.min(i + batchSize, postsToEmbed.length);
 				console.log(`  Progress: ${progress}/${postsToEmbed.length} (${Math.round(progress / postsToEmbed.length * 100)}%)`);
 			}
 
-			// Rate limiting
 			if (i + batchSize < postsToEmbed.length && delayMs > 0) {
 				await sleep(delayMs);
 			}
 		} catch (error) {
 			console.error(`  Error embedding batch at ${i}:`, error);
-			// Don't mark as embedded — will retry on next run
 		}
 	}
 

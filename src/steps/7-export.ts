@@ -1,5 +1,5 @@
 /**
- * Step 6: Export to CSV
+ * Step 7: Export to CSV
  * Exports all posts to feed.csv
  */
 
@@ -13,7 +13,7 @@ const CSV_PATH = path.join(DATA_DIR, "feed.csv");
 
 function escapeCsv(str: string | null | undefined): string {
 	if (!str) return "";
-	// Prevent CSV formula injection (Excel/Sheets interpret leading =, +, -, @, tab, CR)
+	// Prevent CSV formula injection
 	let safe = str;
 	if (/^[=+\-@\t\r]/.test(safe)) {
 		safe = "'" + safe;
@@ -26,9 +26,8 @@ function escapeCsv(str: string | null | undefined): string {
 }
 
 export async function runExport(): Promise<{ exported: number }> {
-	console.log("\n[6/6] Exporting to CSV...");
+	console.log("\n[7/8] Exporting to CSV...");
 
-	// CSV headers
 	const headers = [
 		"id",
 		"source",
@@ -45,7 +44,6 @@ export async function runExport(): Promise<{ exported: number }> {
 		"scored_at"
 	];
 
-	// Stream rows to file to avoid loading everything into a single string
 	const allPosts = posts.iterate();
 	const stream = fs.createWriteStream(CSV_PATH);
 	stream.write(headers.join(",") + "\n");
@@ -86,7 +84,6 @@ export async function runExport(): Promise<{ exported: number }> {
 
 	console.log(`  Exported ${count} posts to ${CSV_PATH}`);
 
-	// Show stats
 	const stats = posts.getStats();
 	console.log(`\n  Stats:`);
 	console.log(`    Total: ${stats.total}`);
