@@ -18,6 +18,7 @@ const PROGRESS_LOG = path.join(DATA_DIR, "enrichment-progress.log");
 
 interface EnrichmentResult {
 	summary: string;
+	summary_local?: string;
 }
 
 function logProgress(message: string): void {
@@ -49,8 +50,7 @@ function loadConfig(): Config {
 function buildEnrichmentPrompt(post: Post, config: Config): string {
 	const template = loadPromptTemplate("enrichment");
 
-	return template
-		.replace("{{language}}", config.language)
+	let prompt = template
 		.replace("{{post.source}}", post.source)
 		.replace("{{post.name}}", post.name || "")
 		.replace("{{post.username}}", post.username || "")
@@ -59,6 +59,17 @@ function buildEnrichmentPrompt(post: Post, config: Config): string {
 		.replace("{{post.stars}}", String(post.stars))
 		.replace("{{post.matched_interest}}", post.matched_interest || "general ML/AI interest")
 		.replace("{{profile}}", config.profile);
+
+	// If notify_language is set and not English, request a localized summary too
+	const lang = config.notify_language;
+	if (lang && lang !== "en") {
+		prompt = prompt.replace(
+			'{"summary": "..."}',
+			`{"summary": "...", "summary_local": "... (same summary in ${lang}, keep technical terms in English)"}`
+		);
+	}
+
+	return prompt;
 }
 
 function parseEnrichmentResponse(response: string): EnrichmentResult & { parseError?: string } {
@@ -67,7 +78,7 @@ function parseEnrichmentResponse(response: string): EnrichmentResult & { parseEr
 		if (jsonMatch) {
 			const parsed = JSON.parse(jsonMatch[0]);
 			if (parsed.summary) {
-				return { summary: parsed.summary };
+				return { summary: parsed.summary, summary_local: parsed.summary_local };
 			}
 			return { summary: "", parseError: "Empty summary in response" };
 		}
@@ -120,7 +131,7 @@ export async function runEnrich(options: { delayMs?: number } = {}): Promise<{ e
 		const result = await enrichPost(post, config);
 
 		if (result.summary) {
-			posts.updateEnrichment(post.id, post.source, result.summary);
+			posts.updateEnrichment(post.id, post.source, result.summary, result.summary_local);
 			enriched++;
 		} else {
 			posts.incrementEnrichAttempts(post.id, post.source);

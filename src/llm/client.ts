@@ -166,5 +166,5 @@ export async function callStrong(prompt: string): Promise<string> {
 	if (LLM_PROVIDER === "anthropic") {
 		return callAnthropicWithRetry("claude-sonnet-4-20250514", 512, prompt);
 	}
-	return callOpenAIWithRetry("gpt-5-mini", 512, prompt, 0.5);
+	return callOpenAIWithRetry("gpt-5-mini", 4096, prompt, 0.5);
 }

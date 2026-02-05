@@ -21,12 +21,13 @@ function escapeHtml(text: string): string {
 		.replace(/>/g, "&gt;");
 }
 
-function formatTelegramPost(post: Post, index: number): string {
+function formatTelegramPost(post: Post, index: number, useLocal: boolean = false): string {
 	const score = ((post.relevance_score ?? 0) * 100).toFixed(0);
 	const name = escapeHtml(post.name || "Untitled");
 	const source = post.source || "unknown";
 	const interest = escapeHtml(post.matched_interest || "—");
-	const summary = post.summary ? escapeHtml(post.summary) : "";
+	const rawSummary = (useLocal && post.summary_local) ? post.summary_local : post.summary;
+	const summary = rawSummary ? escapeHtml(rawSummary) : "";
 
 	let text = `<b>${index}. <a href="${post.url}">${name}</a></b> [${score}% · ${source}]\n`;
 	if (summary) {
@@ -62,7 +63,7 @@ async function sendTelegramMessage(botToken: string, chatId: string, text: strin
 	}
 }
 
-async function sendTelegramDigest(minScore: number): Promise<{ sent: number }> {
+async function sendTelegramDigest(minScore: number, language?: string): Promise<{ sent: number }> {
 	const botToken = process.env.TELEGRAM_BOT_TOKEN;
 	const chatId = process.env.TELEGRAM_CHAT_ID;
 
@@ -72,6 +73,7 @@ async function sendTelegramDigest(minScore: number): Promise<{ sent: number }> {
 	}
 
 	const topPosts = posts.getUnsentTelegramPosts(minScore);
+	const useLocal = !!language && language !== "en";
 
 	if (topPosts.length === 0) {
 		console.log("  [Telegram] No new posts to send");
@@ -88,7 +90,7 @@ async function sendTelegramDigest(minScore: number): Promise<{ sent: number }> {
 	let message = `🔥 <b>git-hit-archive Digest</b>\n📅 ${date}\n\n`;
 
 	for (let i = 0; i < topPosts.length; i++) {
-		message += formatTelegramPost(topPosts[i], i + 1) + "\n";
+		message += formatTelegramPost(topPosts[i], i + 1, useLocal) + "\n";
 	}
 
 	message += `\n📊 Scored: ${stats.scored} of ${stats.total} posts`;
@@ -103,7 +105,7 @@ async function sendTelegramDigest(minScore: number): Promise<{ sent: number }> {
 				: "";
 
 			for (let j = 0; j < chunk.length; j++) {
-				chunkMessage += formatTelegramPost(chunk[j], i + j + 1) + "\n";
+				chunkMessage += formatTelegramPost(chunk[j], i + j + 1, useLocal) + "\n";
 			}
 
 			if (i + chunkSize >= topPosts.length) {
@@ -125,12 +127,12 @@ async function sendTelegramDigest(minScore: number): Promise<{ sent: number }> {
 
 // ── Slack ─────────────────────────────────────────────────
 
-function formatSlackPostBlocks(post: Post, index: number): any[] {
+function formatSlackPostBlocks(post: Post, index: number, useLocal: boolean = false): any[] {
 	const score = ((post.relevance_score ?? 0) * 100).toFixed(0);
 	const name = post.name || "Untitled";
 	const source = post.source || "unknown";
 	const interest = post.matched_interest || "—";
-	const summary = post.summary || "";
+	const summary = (useLocal && post.summary_local) ? post.summary_local : (post.summary || "");
 
 	const blocks: any[] = [
 		{
@@ -176,7 +178,7 @@ async function sendSlackMessage(webhookUrl: string, text: string, blocks?: any[]
 	}
 }
 
-async function sendSlackDigest(minScore: number): Promise<{ sent: number }> {
+async function sendSlackDigest(minScore: number, language?: string): Promise<{ sent: number }> {
 	const webhookUrl = process.env.SLACK_WEBHOOK_URL;
 
 	if (!webhookUrl) {
@@ -185,6 +187,7 @@ async function sendSlackDigest(minScore: number): Promise<{ sent: number }> {
 	}
 
 	const topPosts = posts.getUnsentSlackPosts(minScore);
+	const useLocal = !!language && language !== "en";
 
 	if (topPosts.length === 0) {
 		console.log("  [Slack] No new posts to send");
@@ -208,7 +211,7 @@ async function sendSlackDigest(minScore: number): Promise<{ sent: number }> {
 	let messageCount = 0;
 
 	for (let i = 0; i < topPosts.length; i++) {
-		const postBlocks = formatSlackPostBlocks(topPosts[i], i + 1);
+		const postBlocks = formatSlackPostBlocks(topPosts[i], i + 1, useLocal);
 
 		if (currentBlocks.length + postBlocks.length > MAX_BLOCKS) {
 			await sendSlackMessage(webhookUrl, `git-hit-archive Digest - Part ${messageCount + 1}`, currentBlocks);
@@ -256,10 +259,11 @@ export async function runNotify(): Promise<{ telegram: number; slack: number }> 
 	console.log("\n[8/8] Sending notifications...");
 
 	const config = loadConfig();
-	const minScore = (config.min_score ?? 80) / 100;
+	const minScore = (config.notify_min_score ?? config.min_score ?? 80) / 100;
+	const language = config.notify_language;
 
-	const telegramResult = await sendTelegramDigest(minScore);
-	const slackResult = await sendSlackDigest(minScore);
+	const telegramResult = await sendTelegramDigest(minScore, language);
+	const slackResult = await sendSlackDigest(minScore, language);
 
 	return { telegram: telegramResult.sent, slack: slackResult.sent };
 }
@@ -274,12 +278,13 @@ if (import.meta.url === `file://${process.argv[1]}`) {
 	const slackOnly = args.includes("--slack-only");
 
 	const config = loadConfig();
-	const minScore = (config.min_score ?? 80) / 100;
+	const minScore = (config.notify_min_score ?? config.min_score ?? 80) / 100;
+	const language = config.notify_language;
 
 	if (telegramOnly) {
-		await sendTelegramDigest(minScore);
+		await sendTelegramDigest(minScore, language);
 	} else if (slackOnly) {
-		await sendSlackDigest(minScore);
+		await sendSlackDigest(minScore, language);
 	} else {
 		await runNotify();
 	}

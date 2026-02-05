@@ -1,5 +1,18 @@
 node_modules/
-data/
 .env
+
+# Personal config (use config.example.yaml as template)
 config/config.yaml
-*.lock
+
+# Logs and temporary files
+data/*.log
+data/*.jsonl
+data/*.csv
+data/*.json
+data/posts.db-shm
+data/posts.db-wal
+data/.pipeline.lock/
+
+# Database ships with repo - DO NOT ignore:
+# data/posts.db
+# data/archive.lance/

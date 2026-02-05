@@ -11,8 +11,9 @@ export interface Post {
 	// LLM scoring fields
 	relevance_score?: number;      // 0.0 - 1.0
 	matched_interest?: string;     // which interest matched
-	summary?: string;              // post summary in configured language
-	relevance?: string;            // relevance explanation in configured language
+	summary?: string;              // post summary (always English)
+	summary_local?: string;        // post summary in notify_language (if configured)
+	relevance?: string;            // relevance explanation
 	scored_at?: string;            // when LLM scored this post
 
 	// Notification tracking
@@ -36,15 +37,6 @@ export interface RedditSourceConfig {
 export interface SourceConfig {
 	github: GitHubSourceConfig;
 	reddit?: RedditSourceConfig;
-	huggingface?: {
-		enabled?: boolean;
-		min_likes: number;
-		min_downloads: number;
-	};
-	replicate?: {
-		enabled?: boolean;
-		min_runs: number;
-	};
 	spam_keywords?: string[];
 }
 
@@ -55,8 +47,9 @@ export interface ScheduleConfig {
 }
 
 export interface Config {
-	language: string;
+	notify_language?: string;
 	min_score: number;
+	notify_min_score?: number;
 	profile: string;
 	interests: {
 		high: string[];

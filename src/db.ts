@@ -57,6 +57,7 @@ function initSchema(): void {
 		"ALTER TABLE posts ADD COLUMN enrich_attempts INTEGER DEFAULT 0",
 		"ALTER TABLE posts ADD COLUMN sent_to_telegram_at TEXT",
 		"ALTER TABLE posts ADD COLUMN sent_to_slack_at TEXT",
+		"ALTER TABLE posts ADD COLUMN summary_local TEXT",
 	];
 
 	for (const sql of migrations) {
@@ -230,14 +231,14 @@ export const posts = {
 		stmt.run(score, matchedInterest, new Date().toISOString(), id, source);
 	},
 
-	updateEnrichment(id: string, source: string, summary: string): void {
+	updateEnrichment(id: string, source: string, summary: string, summaryLocal?: string): void {
 		const database = getDb();
 		const stmt = database.prepare(`
 			UPDATE posts
-			SET summary = ?, enrich_attempts = COALESCE(enrich_attempts, 0) + 1
+			SET summary = ?, summary_local = ?, enrich_attempts = COALESCE(enrich_attempts, 0) + 1
 			WHERE id = ? AND source = ?
 		`);
-		stmt.run(summary, id, source);
+		stmt.run(summary, summaryLocal ?? null, id, source);
 	},
 
 	updateDescription(id: string, source: string, description: string): void {

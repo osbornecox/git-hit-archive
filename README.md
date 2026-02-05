@@ -1,58 +1,106 @@
 # git-hit-archive
 
-A curated database of AI/ML repositories from GitHub and Reddit, scored and enriched for relevance. Comes pre-built with ~19,000 repos focused on agents, RAG, developer tools, and LLM infrastructure. Includes semantic search via vector embeddings.
+A ready-to-use research database of AI/ML GitHub repositories. 30,000+ Python repos (25+ stars) — scored, enriched with LLM summaries, and embedded for semantic search.
 
-## What's inside
+Find answers in seconds: "What approaches exist for context window management?" or "Agent orchestration frameworks" — without scrolling through GitHub search results.
 
-The database is built around a specific interest profile (AI/ML developer tools, agents, context engineering). Each repository is:
+Runs locally, updates daily, includes a Claude Code skill for AI-assisted research. Optionally sends top new repos to Telegram/Slack.
 
-1. **Fetched** from GitHub (stars >= 25) and Reddit (r/machinelearning, r/localllama, r/ClaudeAI, r/ChatGPTCoding)
-2. **Scored** by an LLM for relevance to the interest profile (0-100)
-3. **Enriched** with English summaries (repos scoring >= 80 only)
-4. **Embedded** as vectors for semantic search (text-embedding-3-small → LanceDB)
+## How to use
 
-## Quick start: use the pre-built database
+### 1. Use the pre-built database
+
+Everything is ready — just search:
 
 ```bash
 npm install
-
-# Search for repos by topic
 npm run search "agent orchestration"
-npm run search "vector databases" -- --limit=20
-npm run search "RAG retrieval" -- --min-score=0.7
+npm run search "RAG retrieval techniques" -- --limit=20
 ```
 
-No API keys needed for search — it uses the pre-built vector index.
+No API keys needed. The database ships pre-built.
 
-## Build your own database
+**Included database (August 2024 – February 2026):**
 
-If the default interest profile doesn't match yours, you can re-score and re-enrich the entire database with your own settings.
+| Setting | Value |
+|---------|-------|
+| Language | Python |
+| Min stars | 25 |
+| Min score for enrichment | 70% |
+| Total repos | ~30,000 |
+| Enriched (with summaries) | ~5,000 |
+| Embedded (vector index) | ~5,000 |
+
+### 2. Keep it updated daily
+
+Add API keys to fetch and process new repos every day:
 
 ```bash
-# 1. Configure
-cp config/config.example.yaml config/config.yaml
 cp .env.example .env
-# Edit config.yaml — change profile, interests, and exclude lists
-# Edit .env — add OPENAI_API_KEY (required), GITHUB_TOKEN (optional)
+# Add OPENAI_API_KEY or ANTHROPIC_API_KEY
 
-# 2. Re-run the full pipeline
-npm run build-archive
+npm run daemon  # runs on schedule from config.yaml
 ```
 
-This will re-score all posts against your profile, generate new summaries, and rebuild the vector index. Existing fetch data is preserved — only scoring, enrichment, and embeddings are regenerated.
-
-### Incremental updates
+Or run incremental updates manually:
 
 ```bash
-# Fetch new repos from the last 7 days and process them
 npm run build-archive -- --days=7
 ```
 
-### Pipeline steps
+### 3. Rebuild with your own interests
+
+Want different topics or languages? Rebuild from scratch:
+
+```bash
+cp config/config.example.yaml config/config.yaml
+# Edit: change profile, interests, languages, thresholds
+
+npm run build-archive
+```
+
+⚠️ Full rebuild = 30k+ LLM calls. Expect ~$10 in API costs and several hours.
+
+## Claude Code skill
+
+The repo includes `SKILL.md` for use with Claude Code. Add the repo to your workspaces and search with `/git-hit`:
+
+```
+/git-hit what tools exist for multi-agent orchestration?
+```
+
+## Current database settings
+
+The pre-built database was scored with this interest profile:
+
+**High priority (score 0.7–1.0):**
+- Agent architectures (multi-agent, orchestration, reasoning, tool use)
+- Context engineering (RAG, retrieval, embeddings, vector DBs, MCP, memory)
+- Knowledge engineering (extraction, structure, graphs)
+- AI workflow tools (Claude Code, Cursor, Copilot)
+- Prompt engineering, structured outputs
+- Human-AI collaboration
+
+**Medium (0.4–0.6):** No-code AI, productivity tools, tutorials, inference optimization
+
+**Excluded:** Image/video/audio generation, game AI, crypto/NFT
+
+## Telegram & Slack digest
+
+Get top new repos (score ≥ 90%) delivered daily:
+
+```bash
+# Set in .env
+TELEGRAM_BOT_TOKEN=...
+TELEGRAM_CHAT_ID=...
+SLACK_WEBHOOK_URL=https://hooks.slack.com/services/...
+```
+
+## Pipeline
 
 ```
 1. Import    ← Optional: seed from existing database
-2. Fetch     ← GitHub API + Reddit
+2. Fetch     ← GitHub API
 3. README    ← Fetch full README for short descriptions
 4. Score     ← LLM rates relevance to your profile (0-100)
 5. Enrich    ← LLM writes summaries (score >= min_score only)
@@ -61,7 +109,7 @@ npm run build-archive -- --days=7
 8. Notify    ← Optional: Telegram & Slack digest
 ```
 
-Each step is idempotent — safe to re-run without duplicating work.
+Each step is idempotent — safe to re-run.
 
 ### CLI flags
 
@@ -70,18 +118,7 @@ npm run build-archive -- --days=7           # fetch last N days only
 npm run build-archive -- --step=4           # run a single step
 npm run build-archive -- --skip-llm         # skip scoring + enrichment
 npm run build-archive -- --skip-embed       # skip vector embeddings
-npm run build-archive -- --skip-readme      # skip README fetching
 npm run build-archive -- --skip-notify      # skip notifications
-npm run build-archive -- --sources=github   # fetch from specific sources
-```
-
-### LLM provider
-
-OpenAI is used by default. To use Anthropic instead:
-
-```
-LLM_PROVIDER=anthropic
-ANTHROPIC_API_KEY=sk-ant-...
 ```
 
 ## Configuration
@@ -89,7 +126,6 @@ ANTHROPIC_API_KEY=sk-ant-...
 Edit `config/config.yaml`:
 
 ```yaml
-# What goes into the database
 profile: |
   Software engineer working on AI-powered applications.
   Interested in practical ML tools and developer productivity.
@@ -107,108 +143,55 @@ exclude:
   - Image generation
   - Video generation
 
-# Minimum score (0-100) to enrich and include in the database
-min_score: 80
+min_score: 70
+notify_min_score: 90
+notify_language: en
 
-# Sources
 sources:
   github:
     enabled: true
     min_stars: 25
     languages: [python]
-  reddit:
-    enabled: true
-    subreddits: [machinelearning, localllama, ClaudeAI, ChatGPTCoding]
-    min_score: 20
+  # Optional: enable Reddit
+  # reddit:
+  #   enabled: true
+  #   subreddits: [machinelearning, localllama, ClaudeAI]
+  #   min_score: 20
 ```
 
-## Optional: Telegram & Slack digest
+## LLM provider
 
-Send a digest of new high-scoring posts to messengers. Posts are sent once (deduplicated).
-
-```bash
-npm run telegram        # send unsent posts to Telegram
-npm run slack           # send unsent posts to Slack
-```
-
-Both are also called at step 8 of the pipeline (skip with `--skip-notify`).
-
-Set in `.env`:
+OpenAI by default. To use Anthropic:
 
 ```
-TELEGRAM_BOT_TOKEN=...
-TELEGRAM_CHAT_ID=...
-SLACK_WEBHOOK_URL=https://hooks.slack.com/services/...
+LLM_PROVIDER=anthropic
+ANTHROPIC_API_KEY=sk-ant-...
 ```
 
-If not configured, notifications are silently skipped.
+## Cost
 
-## Optional: Scheduler
-
-### Built-in daemon
-
-```bash
-npm run daemon              # run on schedule from config.yaml
-npm run daemon -- --run-now # run immediately, then schedule
-```
-
-Configure in `config.yaml`:
-
-```yaml
-schedule:
-  enabled: true
-  times: ["09:00", "18:00"]
-  timezone: America/New_York
-```
-
-### macOS launchd
-
-`scripts/update.sh` runs an incremental update (`--days=7`) with directory-based locking.
-
-## Cost estimate
-
-For ~13,000 GitHub repos/year (stars >= 25, single language):
+For ~13,000 new repos/year:
 
 | Component | Cost |
 |-----------|------|
-| GitHub API | $0 |
-| Reddit API | $0 |
 | Scoring (gpt-4.1-mini) | ~$3 |
 | Enrichment (gpt-5-mini) | ~$2.50 |
-| Embeddings (text-embedding-3-small) | ~$0.08 |
-| **Total** | **~$6** |
+| Embeddings | ~$0.08 |
+| **Total** | **~$6/year** |
 
 ## Project structure
 
 ```
 src/
-  pipeline.ts        — Orchestrator (steps 1-8)
-  search.ts          — Semantic search CLI
-  daemon.ts          — Built-in scheduler
-  db.ts              — SQLite operations
-  types.ts           — TypeScript interfaces
-  utils.ts           — Shared utilities
-  fetchers/
-    github.ts        — GitHub API fetcher
-    reddit.ts        — Reddit API fetcher
-  steps/
-    1-import.ts      — Seed from existing DB
-    2-fetch.ts       — Source orchestrator
-    3-readme.ts      — README content fetcher
-    4-score.ts       — LLM relevance scoring
-    5-enrich.ts      — LLM summary generation
-    6-embed.ts       — Vector embeddings → LanceDB
-    7-export.ts      — Export to CSV
-    8-notify.ts      — Telegram & Slack digest
-  llm/
-    client.ts        — OpenAI + Anthropic with retry
-    prompts/         — Scoring and enrichment prompts
+  search.ts      — Semantic search CLI
+  pipeline.ts    — Full pipeline orchestrator
+  daemon.ts      — Scheduler for daily updates
+data/
+  posts.db       — SQLite (ships pre-built)
+  archive.lance/ — Vector index (ships pre-built)
 config/
-  config.example.yaml
-data/                — Generated (gitignored)
-  posts.db           — SQLite database
-  archive.lance/     — LanceDB vectors
-  feed.csv           — Exported CSV
+  config.yaml    — Your interests and settings
+SKILL.md         — Claude Code skill definition
 ```
 
 ## License

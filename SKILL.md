@@ -1,6 +1,6 @@
 ---
 name: git-hit-archive
-description: Semantic search over curated AI/ML repositories from GitHub & Reddit (past year, 19k+ repos)
+description: Semantic search over 30k+ curated AI/ML GitHub repositories (Python, 25+ stars)
 ---
 
 ## When to use
@@ -43,12 +43,26 @@ Returns top-N repositories sorted by semantic similarity:
    Summary: English summary of what the project does and why it matters
 ```
 
-## Database stats
+## Search strategy
 
-- ~19,700 repositories from GitHub (past 365 days, stars >= 25)
-- ~2,800 posts enriched with English summaries (score >= 0.8)
-- Vector embeddings via text-embedding-3-small (only enriched posts)
-- Scoring: gpt-4.1-mini | Enrichment: gpt-5-mini
+When the user asks a broad or exploratory question, generate 5-10 diverse search queries from different perspectives and run them **in parallel** using cheap subagents (e.g. haiku model).
+
+Example for "what tools exist for building AI agents?":
+1. "agent orchestration framework"
+2. "multi-agent system library"
+3. "LLM agent toolkit"
+4. "autonomous agent platform"
+5. "agent workflow builder"
+6. "AI agent development SDK"
+
+This ensures comprehensive coverage across different naming conventions and approaches.
+
+## Database stats (as of 2026-02-05)
+
+- ~30,000 GitHub repos (Python, 25+ stars, past 18 months)
+- ~5,000 enriched with summaries (score >= 0.7)
+- Vector embeddings via text-embedding-3-small (only enriched repos)
+- Scoring: gpt-4.1-mini | Enrichment: gpt-4.1-mini
 
 ## Notes
 
