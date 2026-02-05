@@ -39,7 +39,7 @@ Add API keys to fetch and process new repos every day:
 cp .env.example .env
 # Add OPENAI_API_KEY or ANTHROPIC_API_KEY
 
-npm run daemon  # runs on schedule from config.yaml
+npm run daemon  # runs on schedule from config.yaml (cross-platform: macOS, Linux, Windows)
 ```
 
 Or run incremental updates manually:
