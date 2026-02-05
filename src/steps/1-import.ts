@@ -11,7 +11,7 @@ import * as fs from "fs";
 const IMPORT_DB_PATH = process.env.IMPORT_DB_PATH || "";
 
 export async function runImport(): Promise<{ imported: number }> {
-	console.log("\n[1/6] Importing posts from external database...");
+	console.log("\n[1/8] Importing posts from external database...");
 
 	if (!IMPORT_DB_PATH || !fs.existsSync(IMPORT_DB_PATH)) {
 		console.log("  IMPORT_DB_PATH not set or file not found, skipping import");

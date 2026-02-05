@@ -11,35 +11,45 @@ export interface Post {
 	// LLM scoring fields
 	relevance_score?: number;      // 0.0 - 1.0
 	matched_interest?: string;     // which interest matched
-	summary?: string;              // post summary in configured language
-	relevance?: string;            // relevance explanation in configured language
+	summary?: string;              // post summary (always English)
+	summary_local?: string;        // post summary in notify_language (if configured)
+	relevance?: string;            // relevance explanation
 	scored_at?: string;            // when LLM scored this post
+
+	// Notification tracking
+	sent_to_telegram_at?: string;
+	sent_to_slack_at?: string;
 }
 
 export interface GitHubSourceConfig {
+	enabled?: boolean;
 	min_stars: number;
 	languages: string[];
 }
 
+export interface RedditSourceConfig {
+	enabled?: boolean;
+	subreddits: string[];
+	min_score: number;
+	flair_filters?: Record<string, string[]>;
+}
+
 export interface SourceConfig {
 	github: GitHubSourceConfig;
-	reddit?: {
-		subreddits: string[];
-		min_score: number;
-	};
-	huggingface?: {
-		min_likes: number;
-		min_downloads: number;
-	};
-	replicate?: {
-		min_runs: number;
-	};
+	reddit?: RedditSourceConfig;
 	spam_keywords?: string[];
 }
 
+export interface ScheduleConfig {
+	enabled: boolean;
+	times: string[];
+	timezone?: string;
+}
+
 export interface Config {
-	language: string;
-	min_score_for_digest: number;
+	notify_language?: string;
+	min_score: number;
+	notify_min_score?: number;
 	profile: string;
 	interests: {
 		high: string[];
@@ -48,9 +58,10 @@ export interface Config {
 	};
 	exclude: string[];
 	sources: SourceConfig;
+	schedule?: ScheduleConfig;
 }
 
 export interface FetchProgress {
-	completedRanges: Array<{ start: string; end: string; count: number }>;
+	completedRanges: Array<{ start: string; end: string; count: number; language?: string }>;
 	lastUpdated: string;
 }
