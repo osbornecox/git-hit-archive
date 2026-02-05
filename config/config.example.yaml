@@ -69,7 +69,8 @@ sources:
     enabled: true
     min_stars: 25          # minimum stars to fetch a repo
     languages:
-      - python             # GitHub language filter (one fetch per language)
+      - python
+      - typescript         # GitHub language filter (one fetch per language)
 
   # Optional: Reddit support (disabled by default)
   # reddit:

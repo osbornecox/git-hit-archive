@@ -1,6 +1,6 @@
 ---
 name: git-hit-archive
-description: Semantic search over 30k+ curated AI/ML GitHub repositories (Python, 25+ stars)
+description: Semantic search over 44k+ curated AI/ML GitHub repositories (Python & TypeScript, 25+ stars)
 ---
 
 ## When to use
