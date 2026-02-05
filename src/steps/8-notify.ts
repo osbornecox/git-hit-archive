@@ -112,11 +112,19 @@ async function sendTelegramDigest(minScore: number, language?: string): Promise<
 				chunkMessage += `\n📊 Scored: ${stats.scored} of ${stats.total} posts`;
 			}
 
-			await sendTelegramMessage(botToken, chatId, chunkMessage);
+			const success = await sendTelegramMessage(botToken, chatId, chunkMessage);
+			if (!success) {
+				console.error("  [Telegram] Failed to send chunk, aborting");
+				return { sent: 0 };
+			}
 			await sleep(500);
 		}
 	} else {
-		await sendTelegramMessage(botToken, chatId, message);
+		const success = await sendTelegramMessage(botToken, chatId, message);
+		if (!success) {
+			console.error("  [Telegram] Failed to send message");
+			return { sent: 0 };
+		}
 	}
 
 	posts.markAsSentToTelegram(topPosts.map(p => ({ id: p.id, source: p.source })));
@@ -214,7 +222,11 @@ async function sendSlackDigest(minScore: number, language?: string): Promise<{ s
 		const postBlocks = formatSlackPostBlocks(topPosts[i], i + 1, useLocal);
 
 		if (currentBlocks.length + postBlocks.length > MAX_BLOCKS) {
-			await sendSlackMessage(webhookUrl, `git-hit-archive Digest - Part ${messageCount + 1}`, currentBlocks);
+			const success = await sendSlackMessage(webhookUrl, `git-hit-archive Digest - Part ${messageCount + 1}`, currentBlocks);
+			if (!success) {
+				console.error("  [Slack] Failed to send chunk, aborting");
+				return { sent: 0 };
+			}
 			await sleep(500);
 			messageCount++;
 			currentBlocks = [];
@@ -239,7 +251,11 @@ async function sendSlackDigest(minScore: number, language?: string): Promise<{ s
 		return `${i + 1}. <${p.url}|${p.name}> [${score}%] ${p.summary || ""}`;
 	}).join("\n");
 
-	await sendSlackMessage(webhookUrl, fallbackText, currentBlocks);
+	const success = await sendSlackMessage(webhookUrl, fallbackText, currentBlocks);
+	if (!success) {
+		console.error("  [Slack] Failed to send final message");
+		return { sent: 0 };
+	}
 
 	posts.markAsSentToSlack(topPosts.map(p => ({ id: p.id, source: p.source })));
 	console.log(`  [Slack] Sent digest with ${topPosts.length} posts`);

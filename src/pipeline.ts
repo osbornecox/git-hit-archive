@@ -181,5 +181,7 @@ export async function runPipeline(overrides?: Partial<PipelineOptions>): Promise
 	}
 }
 
-// Run when called directly
-runPipeline();
+// Run when called directly (not when imported by daemon)
+if (import.meta.url === `file://${process.argv[1]}`) {
+	runPipeline();
+}
