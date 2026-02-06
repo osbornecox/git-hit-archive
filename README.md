@@ -1,6 +1,6 @@
 # git-hit-archive
 
-A ready-to-use research database of AI/ML GitHub repositories. 44,000+ Python & TypeScript repos (25+ stars) — scored, enriched with LLM summaries, and embedded for semantic search.
+A ready-to-use research database of AI/ML GitHub repositories. 44,600+ Python & TypeScript repos (25+ stars) — scored, enriched with LLM summaries, and embedded for semantic search.
 
 Find answers in seconds: "What approaches exist for context window management?" or "Agent orchestration frameworks" — without scrolling through GitHub search results.
 
@@ -27,9 +27,9 @@ No API keys needed. The database ships pre-built.
 | Languages | Python, TypeScript |
 | Min stars | 25 |
 | Min score for enrichment | 70% |
-| Total repos | ~44,000 |
-| Enriched (with summaries) | ~5,500 |
-| Embedded (vector index) | ~5,500 |
+| Total repos | ~44,600 |
+| Enriched (with summaries) | ~6,600 |
+| Embedded (vector index) | ~6,600 |
 
 ### 2. Keep it updated daily
 
