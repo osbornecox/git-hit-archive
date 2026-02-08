@@ -1,6 +1,6 @@
 ---
 name: git-hit-archive
-description: Semantic search over 44k+ curated AI/ML GitHub repositories (Python & TypeScript, 25+ stars)
+description: Semantic search over 44.7k+ curated AI/ML GitHub repositories (Python & TypeScript, 25+ stars)
 ---
 
 ## When to use
@@ -57,12 +57,12 @@ Example for "what tools exist for building AI agents?":
 
 This ensures comprehensive coverage across different naming conventions and approaches.
 
-## Database stats (as of 2026-02-05)
+## Database stats (as of 2026-02-08)
 
-- ~30,000 GitHub repos (Python, 25+ stars, past 18 months)
-- ~5,000 enriched with summaries (score >= 0.7)
+- ~44,700 GitHub repos (Python & TypeScript, 25+ stars, past 18 months)
+- ~7,400 enriched with summaries (score >= 0.7)
 - Vector embeddings via text-embedding-3-small (only enriched repos)
-- Scoring: gpt-4.1-mini | Enrichment: gpt-4.1-mini
+- Scoring: gpt-4.1-mini | Enrichment: gpt-5-mini
 
 ## Notes
 
