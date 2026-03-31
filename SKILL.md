@@ -1,73 +1,74 @@
 ---
-name: git-hit-archive
-description: Semantic search over 44.7k+ curated AI/ML GitHub repositories (Python & TypeScript, 25+ stars)
+name: git-hit
+description: Find AI/ML GitHub repos — "find repos for", "what tools exist for", "are there any projects that"
+argument-hint: [search query]
+allowed-tools: Bash(cd * && npx tsx src/search.ts *)
 ---
 
 ## When to use
 
-Use this skill when:
-- User asks to find ML/AI repositories by topic
-- User needs recommendations for tools, libraries, or frameworks
-- User asks "what's interesting in X area"
-- User wants to explore specific ML/AI technologies
-- User needs to check if a tool/approach exists on GitHub
+- User asks to find ML/AI repositories or tools
+- User asks "what exists for X" or "are there projects that do Y"
+- User needs tool/library recommendations for an AI/ML task
+- User says "git-hit", "/git-hit", or asks to search the repo database
 
-## How to use
+## Command
 
 ```bash
-npx tsx src/search.ts "your query" --limit=10
+cd /Users/oleg/Vibespace/git-hit-archive && npx tsx src/search.ts "<query>" --limit=<N>
 ```
 
-### Options
-
-- `--limit=N` — Number of results (default: 10)
-- `--min-score=X` — Minimum relevance score 0-1 (default: none)
-
-### Examples
-
-```bash
-npx tsx src/search.ts "agent orchestration"
-npx tsx src/search.ts "vector databases" --limit=20
-npx tsx src/search.ts "RAG retrieval" --min-score=0.7
-npx tsx src/search.ts "code generation LLM"
-```
-
-## Output format
-
-Returns top-N repositories sorted by semantic similarity:
-
-```
-1. repo-name (stars 1234)
-   https://github.com/user/repo
-   Score: 0.85 | Distance: 0.123
-   Summary: English summary of what the project does and why it matters
-```
+- `--limit=N` — number of results (default: 10, use 5 for focused queries, 15-20 for broad exploration)
+- `--min-score=X` — minimum relevance score 0-1 (use 0.7+ for strict filtering)
 
 ## Search strategy
 
-When the user asks a broad or exploratory question, generate 5-10 diverse search queries from different perspectives and run them **in parallel** using cheap subagents (e.g. haiku model).
+**Simple query** (specific topic, e.g. "RLHF libraries", "vector databases"):
+- Run a single search command with limit=10
+- Present results directly
 
-Example for "what tools exist for building AI agents?":
-1. "agent orchestration framework"
-2. "multi-agent system library"
-3. "LLM agent toolkit"
-4. "autonomous agent platform"
-5. "agent workflow builder"
-6. "AI agent development SDK"
+**Broad/exploratory query** (e.g. "всё про RLM", "what's out there for AI agents", "explore LLM tooling"):
+- Decompose the user's query into 5-8 diverse sub-queries covering different angles, synonyms, and related concepts
+- Launch all sub-queries **in parallel** using the Task tool (subagent_type=Bash, use the cheapest/fastest available model), each running the search command with limit=7
+- Collect all results, deduplicate by repo name/URL, and merge
+- Rank by frequency across sub-queries (appeared in more = more relevant) and star count
+- Present a consolidated report grouped by theme
 
-This ensures comprehensive coverage across different naming conventions and approaches.
+Example decomposition for "всё про RLM":
+1. "reinforcement learning from human feedback RLHF"
+2. "reward model training LLM"
+3. "DPO direct preference optimization"
+4. "LLM alignment techniques"
+5. "preference tuning language models"
+6. "PPO RLHF training framework"
+7. "human feedback dataset annotation"
 
-## Database stats (as of 2026-02-08)
+**How to detect broad queries:** user says "всё про", "everything about", "explore", "deep dive", "обзор", "what's the landscape", or the topic is very general (single acronym, broad field name).
 
-- ~44,700 GitHub repos (Python & TypeScript, 25+ stars, past 18 months)
-- ~7,400 enriched with summaries (score >= 0.7)
-- Vector embeddings via text-embedding-3-small (only enriched repos)
-- Scoring: gpt-4.1-mini | Enrichment: gpt-5-mini
+## How to present results
+
+**If user wants an overview** ("find repos about X", "what's out there for Y"):
+- Show top 5-7 results as a compact list: name, stars, link, one-line summary
+- Skip repos with no summary (less relevant)
+
+**If user is solving a specific problem** ("I need a tool for X", "how to do Y"):
+- Pick 2-3 best matches from results
+- Explain what each does and which fits the use case
+- Link to repos
+
+**If broad/deep search was used:**
+- Group results by theme/sub-topic
+- Show 3-5 repos per group: name, stars, link, one-line summary
+- Add a brief intro for each group explaining the sub-topic
+- End with a summary of the landscape
+
+**If 0 results returned:**
+- Say the database doesn't have matches for this query
+- Suggest rephrasing (more general or different angle)
+- Offer to search the web instead
 
 ## Notes
 
-- Search uses semantic similarity (vector search), not keyword matching
-- Higher relevance_score = better match to user interests (AI/ML focus)
-- Lower distance = closer semantic match to your query
-- Summaries are in English for embedding quality and reusability
-- Only enriched posts (with summaries) are in the vector index
+- Database: curated GitHub repos (past year, stars >= 25), updated daily
+- Search is semantic (vector similarity), not keyword — rephrase if results seem off
+- Only ~15% of repos have summaries and are searchable (the highest-scored ones)
