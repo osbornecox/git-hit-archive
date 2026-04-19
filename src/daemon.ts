@@ -83,7 +83,7 @@ async function runUpdate(): Promise<void> {
 
 	try {
 		const { runPipeline } = await import("./pipeline");
-		await runPipeline({ fetchDays: 7 });
+		await runPipeline({ fetchDays: 60 });
 	} catch (error) {
 		console.error("Update failed:", error);
 	}
