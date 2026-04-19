@@ -1,88 +1,79 @@
 /**
- * Step 7: Export to CSV
- * Exports all posts to feed.csv
+ * Step 7: Export public archive.db
+ * Exports only enriched posts (summary IS NOT NULL) to a clean SQLite file.
+ * This is the shareable artifact — raw posts.db stays local.
  */
 
-import { posts } from "../db";
-import type { Post } from "../types";
+import Database from "better-sqlite3";
+import { posts, getDb } from "../db";
 import * as fs from "fs";
 import * as path from "path";
 
 const DATA_DIR = path.join(process.cwd(), "data");
-const CSV_PATH = path.join(DATA_DIR, "feed.csv");
+const ARCHIVE_PATH = path.join(DATA_DIR, "archive.db");
 
-function escapeCsv(str: string | null | undefined): string {
-	if (!str) return "";
-	// Prevent CSV formula injection
-	let safe = str;
-	if (/^[=+\-@\t\r]/.test(safe)) {
-		safe = "'" + safe;
-	}
-	const escaped = safe.replace(/"/g, '""');
-	if (escaped.includes(",") || escaped.includes('"') || escaped.includes("\n") || escaped.includes("\r")) {
-		return `"${escaped}"`;
-	}
-	return escaped;
-}
+const PUBLIC_COLUMNS = [
+	"id",
+	"source",
+	"username",
+	"name",
+	"stars",
+	"description",
+	"url",
+	"created_at",
+	"relevance_score",
+	"matched_interest",
+	"summary",
+];
 
 export async function runExport(): Promise<{ exported: number }> {
-	console.log("\n[7/8] Exporting to CSV...");
+	console.log("\n[7/8] Exporting public archive.db...");
 
-	const headers = [
-		"id",
-		"source",
-		"username",
-		"name",
-		"stars",
-		"description",
-		"url",
-		"created_at",
-		"relevance_score",
-		"matched_interest",
-		"summary",
-		"relevance",
-		"scored_at"
-	];
+	if (fs.existsSync(ARCHIVE_PATH)) fs.unlinkSync(ARCHIVE_PATH);
 
-	const allPosts = posts.iterate();
-	const stream = fs.createWriteStream(CSV_PATH);
-	stream.write(headers.join(",") + "\n");
+	const archive = new Database(ARCHIVE_PATH);
+	archive.exec(`
+		CREATE TABLE posts (
+			id TEXT NOT NULL,
+			source TEXT NOT NULL,
+			username TEXT,
+			name TEXT,
+			stars INTEGER,
+			description TEXT,
+			url TEXT,
+			created_at TEXT,
+			relevance_score REAL,
+			matched_interest TEXT,
+			summary TEXT NOT NULL,
+			PRIMARY KEY (id, source)
+		);
+		CREATE INDEX idx_archive_score ON posts(relevance_score DESC);
+		CREATE INDEX idx_archive_created ON posts(created_at DESC);
+	`);
 
-	let count = 0;
-	for (const p of allPosts) {
-		const row = [
-			escapeCsv(p.id),
-			escapeCsv(p.source),
-			escapeCsv(p.username),
-			escapeCsv(p.name),
-			p.stars,
-			escapeCsv(p.description),
-			escapeCsv(p.url),
-			escapeCsv(p.created_at),
-			p.relevance_score?.toFixed(2) || "",
-			escapeCsv(p.matched_interest),
-			escapeCsv(p.summary),
-			escapeCsv(p.relevance),
-			escapeCsv(p.scored_at),
-		].join(",");
-		stream.write(row + "\n");
-		count++;
-	}
+	const source = getDb();
+	const rows = source.prepare(`
+		SELECT ${PUBLIC_COLUMNS.join(", ")}
+		FROM posts
+		WHERE summary IS NOT NULL
+		ORDER BY relevance_score DESC, stars DESC
+	`).all() as Array<Record<string, any>>;
 
-	stream.end();
-	await new Promise<void>((resolve, reject) => {
-		stream.on("finish", resolve);
-		stream.on("error", reject);
+	const insert = archive.prepare(`
+		INSERT INTO posts (${PUBLIC_COLUMNS.join(", ")})
+		VALUES (${PUBLIC_COLUMNS.map(() => "?").join(", ")})
+	`);
+
+	const insertMany = archive.transaction((items: Array<Record<string, any>>) => {
+		for (const row of items) {
+			insert.run(...PUBLIC_COLUMNS.map(c => row[c] ?? null));
+		}
 	});
+	insertMany(rows);
 
-	console.log(`  Found ${count} posts to export`);
+	archive.close();
 
-	if (count === 0) {
-		console.log("  Nothing to export");
-		return { exported: 0 };
-	}
-
-	console.log(`  Exported ${count} posts to ${CSV_PATH}`);
+	console.log(`  Exported ${rows.length} enriched posts to ${ARCHIVE_PATH}`);
 
 	const stats = posts.getStats();
 	console.log(`\n  Stats:`);
@@ -91,5 +82,5 @@ export async function runExport(): Promise<{ exported: number }> {
 	console.log(`    Enriched: ${stats.enriched}`);
 	console.log(`    Embedded: ${stats.embedded}`);
 
-	return { exported: count };
+	return { exported: rows.length };
 }

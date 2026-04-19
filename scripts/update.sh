@@ -47,3 +47,13 @@ echo "=== Update completed at $(date) ===" | tee -a "$LOG_FILE"
 
 # Cleanup old logs (keep last 30)
 ls -t "$LOG_DIR"/update-*.log 2>/dev/null | tail -n +31 | xargs rm -f 2>/dev/null || true
+
+# Auto-commit public artifacts if changed (local only, no push)
+if git diff --quiet -- data/archive.db data/archive.lance 2>/dev/null && \
+   [ -z "$(git ls-files --others --exclude-standard -- data/archive.db data/archive.lance 2>/dev/null)" ]; then
+  echo "No changes to commit" | tee -a "$LOG_FILE"
+else
+  stats=$(sqlite3 data/archive.db "SELECT COUNT(*) FROM posts" 2>/dev/null || echo "?")
+  git add data/archive.db data/archive.lance
+  git commit -m "chore: daily update (${stats} enriched posts)" 2>&1 | tee -a "$LOG_FILE"
+fi

@@ -1,6 +1,6 @@
 /**
  * git-hit-archive Unified Pipeline
- * 8-step orchestrator: Import → Fetch → README → Score → Enrich → Embed → Export → Notify
+ * 8-step orchestrator: Import → Fetch → README → Score → Enrich → Embed → Export (archive.db) → Notify
  *
  * Usage:
  *   npm run build-archive                    # Full pipeline
