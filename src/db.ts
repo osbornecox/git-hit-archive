@@ -174,6 +174,17 @@ export const posts = {
 		return stmt.all(minScore, maxAttempts, limit) as Post[];
 	},
 
+	countUnenriched(minScore: number = 0.8, maxAttempts: number = 3): number {
+		const database = getDb();
+		const stmt = database.prepare(`
+			SELECT COUNT(*) as c FROM posts
+			WHERE relevance_score >= ?
+			  AND summary IS NULL
+			  AND COALESCE(enrich_attempts, 0) < ?
+		`);
+		return (stmt.get(minScore, maxAttempts) as { c: number }).c;
+	},
+
 	getUnembedded(limit: number = 10000): Post[] {
 		const database = getDb();
 		const stmt = database.prepare(`

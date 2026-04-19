@@ -11,7 +11,7 @@ const RATE_LIMIT_DELAY_MS = 15000;
 const LOG_FILE = path.join(process.cwd(), "data", "llm-errors.log");
 
 // Provider selection: "openai" or "anthropic"
-const LLM_PROVIDER = process.env.LLM_PROVIDER || "openai";
+const LLM_PROVIDER = process.env.LLM_PROVIDER || "anthropic";
 
 let anthropicClient: Anthropic | null = null;
 let openaiClient: OpenAI | null = null;
@@ -50,11 +50,13 @@ function getOpenAIClient(): OpenAI {
 }
 
 function isRetryableError(error: any): boolean {
-	const errorMsg = error?.message || String(error);
+	const errorMsg = (error?.message || String(error)).toLowerCase();
 	return (
 		errorMsg.includes("timeout") ||
-		errorMsg.includes("ECONNRESET") ||
-		errorMsg.includes("ETIMEDOUT") ||
+		errorMsg.includes("timed out") ||
+		errorMsg.includes("econnreset") ||
+		errorMsg.includes("etimedout") ||
+		errorMsg.includes("connection error") ||
 		errorMsg.includes("overloaded") ||
 		error?.status === 429 ||
 		error?.status === 529 ||
@@ -99,6 +101,10 @@ async function callAnthropicWithRetry(
 				messages: [{ role: "user", content: prompt }],
 			});
 
+			if (response.stop_reason === "max_tokens") {
+				log(`WARN [${model}]: response truncated at max_tokens=${maxTokens}`);
+			}
+
 			const textBlock = response.content.find((block) => block.type === "text");
 			return textBlock ? textBlock.text : "";
 		} catch (error: any) {
@@ -140,6 +146,11 @@ async function callOpenAIWithRetry(
 				};
 
 			const response = await client.chat.completions.create(params);
+
+			if (response.choices[0]?.finish_reason === "length") {
+				log(`WARN [${model}]: response truncated at max_tokens=${maxTokens}`);
+			}
+
 			return response.choices[0]?.message?.content || "";
 		} catch (error: any) {
 			if (attempt === MAX_RETRIES) {
@@ -156,7 +167,7 @@ async function callOpenAIWithRetry(
 // Fast model for scoring
 export async function callFast(prompt: string): Promise<string> {
 	if (LLM_PROVIDER === "anthropic") {
-		return callAnthropicWithRetry("claude-3-5-haiku-20241022", 256, prompt);
+		return callAnthropicWithRetry("claude-haiku-4-5-20251001", 256, prompt);
 	}
 	return callOpenAIWithRetry("gpt-4.1-mini", 256, prompt, 0.2);
 }
@@ -164,7 +175,7 @@ export async function callFast(prompt: string): Promise<string> {
 // Stronger model for enrichment
 export async function callStrong(prompt: string): Promise<string> {
 	if (LLM_PROVIDER === "anthropic") {
-		return callAnthropicWithRetry("claude-sonnet-4-20250514", 512, prompt);
+		return callAnthropicWithRetry("claude-sonnet-4-6", 1024, prompt);
 	}
-	return callOpenAIWithRetry("gpt-5-mini", 4096, prompt, 0.5);
+	return callOpenAIWithRetry("gpt-5-mini", 1024, prompt, 0.5);
 }

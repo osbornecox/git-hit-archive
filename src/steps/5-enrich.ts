@@ -112,42 +112,47 @@ export async function runEnrich(options: { delayMs?: number } = {}): Promise<{ e
 
 	const config = loadConfig();
 	const minScore = (config.min_score ?? 80) / 100;
-	const postsToEnrich = posts.getUnenriched(minScore);
+	const initialTotal = posts.countUnenriched(minScore);
 
-	logProgress(`  Found ${postsToEnrich.length} posts to enrich (score >= ${minScore})`);
+	logProgress(`  Found ${initialTotal} posts to enrich (score >= ${minScore})`);
 
-	if (postsToEnrich.length === 0) {
+	if (initialTotal === 0) {
 		logProgress("  Nothing to enrich");
 		return { enriched: 0, failed: 0 };
 	}
 
 	let enriched = 0;
 	let failed = 0;
+	let processed = 0;
 	const startTime = Date.now();
 
-	for (let i = 0; i < postsToEnrich.length; i++) {
-		const post = postsToEnrich[i];
+	while (true) {
+		const batch = posts.getUnenriched(minScore);
+		if (batch.length === 0) break;
 
-		const result = await enrichPost(post, config);
+		for (const post of batch) {
+			const result = await enrichPost(post, config);
 
-		if (result.summary) {
-			posts.updateEnrichment(post.id, post.source, result.summary, result.summary_local);
-			enriched++;
-		} else {
-			posts.incrementEnrichAttempts(post.id, post.source);
-			logFailed(post, result.error || "empty summary", result.response);
-			failed++;
-		}
+			if (result.summary) {
+				posts.updateEnrichment(post.id, post.source, result.summary, result.summary_local);
+				enriched++;
+			} else {
+				posts.incrementEnrichAttempts(post.id, post.source);
+				logFailed(post, result.error || "empty summary", result.response);
+				failed++;
+			}
+			processed++;
 
-		if ((i + 1) % 50 === 0 || i + 1 === postsToEnrich.length) {
-			const elapsedSec = (Date.now() - startTime) / 1000;
-			const elapsed = elapsedSec.toFixed(0);
-			const rate = elapsedSec > 0 ? ((i + 1) / elapsedSec * 60).toFixed(0) : "∞";
-			logProgress(`  Progress: ${i + 1}/${postsToEnrich.length} (${Math.round((i + 1) / postsToEnrich.length * 100)}%) | ${elapsed}s | ~${rate}/min | failed: ${failed}`);
-		}
+			if (processed % 50 === 0) {
+				const elapsedSec = (Date.now() - startTime) / 1000;
+				const elapsed = elapsedSec.toFixed(0);
+				const rate = elapsedSec > 0 ? (processed / elapsedSec * 60).toFixed(0) : "∞";
+				logProgress(`  Progress: ${processed}/${initialTotal}+ | ${elapsed}s | ~${rate}/min | failed: ${failed}`);
+			}
 
-		if (i + 1 < postsToEnrich.length && delayMs > 0) {
-			await sleep(delayMs);
+			if (delayMs > 0) {
+				await sleep(delayMs);
+			}
 		}
 	}
 
